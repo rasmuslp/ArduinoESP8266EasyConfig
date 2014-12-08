@@ -9,7 +9,7 @@
 
 #define RESET_BTN 6
 
-SoftwareSerial dSerial(SOFT_SERIAL_RX, SOFT_SERIAL_TX); // RX, TX
+SoftwareSerial ss(SOFT_SERIAL_RX, SOFT_SERIAL_TX); // RX, TX
 
 String ssid;
 String pass;
@@ -20,19 +20,18 @@ char readBuf[BUFF];
 byte rbIndex = 0;
 
 void setup() {
-  dSerial.begin(9600);
-  dSerial.println("ESP8266 AP setup");
+  Serial.begin(9600);
+  Serial.println("ESP8266 AP setup");
 
   pinMode(RESET_BTN, INPUT);
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_BLUE, OUTPUT);
 
-  Serial.begin(9600);
-  Serial.setTimeout(5000);
-  while (!Serial);
-  while (Serial.available() > 0) {
-    Serial.read();
+  ss.begin(9600);
+  ss.setTimeout(5000);
+  while (ss.available() > 0) {
+    ss.read();
   }
 
   sendCommand("AT+RST", "111", "222");
@@ -43,11 +42,11 @@ void setup() {
 }
 
 String receiveData() {
-  if (!Serial.find("+IPD,")) {
+  if (!ss.find("+IPD,")) {
     return "";
   }
 
-  String ret = Serial.readStringUntil('\n');
+  String ret = ss.readStringUntil('\n');
   boolean dataOk = true;
 
   int connectionIdDelimiter = ret.indexOf(',');
@@ -61,12 +60,12 @@ String receiveData() {
   }
 
   if (dataOk) {
-    dSerial.print("Conn ID: ");
-    dSerial.println(ret.substring(0, connectionIdDelimiter));
+    Serial.print("Conn ID: ");
+    Serial.println(ret.substring(0, connectionIdDelimiter));
     ret = ret.substring(startDelimiter + 1);
   } else {
-    dSerial.println("Data malformed?");
-    dSerial.println(ret);
+    Serial.println("Data malformed?");
+    Serial.println(ret);
     ret = "";
   }
 
@@ -77,12 +76,12 @@ String readCom() {
   String ret = "";
   rbIndex = 0;
 
-  while (Serial.available() > 0) {
+  while (ss.available() > 0) {
     if (rbIndex > (BUFF - 2)) {
-      dSerial.println("Read buffer full :<");
+      Serial.println("Read buffer full :<");
       //return false;
     }
-    char c = Serial.read();
+    char c = ss.read();
     readBuf[rbIndex++] = c;
     readBuf[rbIndex] = '\0';
   }
@@ -96,22 +95,22 @@ String readCom() {
 }
 
 boolean sendCommand(String command, String success, String failure) {
-  Serial.println(command);
+  ss.println(command);
   delay(1000);
   String ret = readCom();
-  dSerial.println("Transaction:");
-  dSerial.println(ret);
+  Serial.println("Transaction:");
+  Serial.println(ret);
   return true;
 }
 
 String findValue(String input, String key) {
-  dSerial.println("Got: " + input);
+  Serial.println("Got: " + input);
 
   String ret = "Key not found: " + key;
   int eqIndex = input.indexOf('=');
   while (eqIndex > -1) {
     String k = input.substring(0, eqIndex);
-    dSerial.println("Found key: " + k);
+    Serial.println("Found key: " + k);
     String v;
     int ampIndex = input.indexOf('&');
     if (ampIndex > -1) {
@@ -120,7 +119,7 @@ String findValue(String input, String key) {
     } else {
       v = input.substring(eqIndex + 1);
     }
-    dSerial.println("Found value: " + v);
+    Serial.println("Found value: " + v);
     if (k.equals(key)) {
       ret = v;
       break;
@@ -133,7 +132,7 @@ String findValue(String input, String key) {
 }
 
 void loop() {
-  //  dSerial.println(digitalRead(RESET_BTN));
+  //  Serial.println(digitalRead(RESET_BTN));
 
   if (!serverIsRunning) {
     serverIsRunning = setupAsAP();
@@ -147,65 +146,65 @@ void loop() {
     int reqStart = readValue.indexOf("GET /");
     if (reqStart == -1) {
       // No request start, leaving...
-      dSerial.print("Invalid request: ");
-      dSerial.println(readValue);
+      Serial.print("Invalid request: ");
+      Serial.println(readValue);
       return;
     }
     int reqEnd = readValue.lastIndexOf(" HTTP/");
     if (reqEnd == -1) {
       // No request end, leaving...
-      dSerial.print("Invalid request: ");
-      dSerial.println(readValue);
+      Serial.print("Invalid request: ");
+      Serial.println(readValue);
       return;
     }
 
     readValue = readValue.substring(reqStart + 5, reqEnd);
 
     //TODO: Remove
-    dSerial.println(readValue);
+    Serial.println(readValue);
 
     // Read command
     int commandDelimiter = readValue.indexOf('/');
     if (commandDelimiter == -1) {
       // No command delimiter, leaving...
-      dSerial.print("Invalid command: ");
-      dSerial.println(readValue);
+      Serial.print("Invalid command: ");
+      Serial.println(readValue);
       return;
     }
     String command = readValue.substring(0, commandDelimiter);
-    dSerial.println("Command:");
-    dSerial.println(command);
+    Serial.println("Command:");
+    Serial.println(command);
 
     //TODO
     readValue = readValue.substring(commandDelimiter+2);
 
     // Parse commands
     if (command.equals("join")) {
-      dSerial.println("Got join command");
+      Serial.println("Got join command");
       String ssid = findValue(readValue, "ssid");
       String pass = findValue(readValue, "pass");
-      dSerial.print("SSID: ");
-      dSerial.println(ssid);
-      dSerial.print("Password: ");
-      dSerial.println(pass);
+      Serial.print("SSID: ");
+      Serial.println(ssid);
+      Serial.print("Password: ");
+      Serial.println(pass);
       
       
       sendCommand("AT+CIPSERVER=0,8080", "", "");
-//      Serial.println();
+//      ss.println();
 //      delay(500);
-//      if(Serial.find("OK")) {
-//        dSerial.println("Yay");
+//      if(ss.find("OK")) {
+//        Serial.println("Yay");
 //      } else {
-//        dSerial.println("Nay");
+//        Serial.println("Nay");
 //      }
       
             sendCommand("AT+CWMODE=1", "", "");
-//      Serial.println("AT+CWMODE=1");
+//      ss.println("AT+CWMODE=1");
 //      delay(500);
-//      if(Serial.find("OK")) {
-//        dSerial.println("Yay");
+//      if(ss.find("OK")) {
+//        Serial.println("Yay");
 //      } else {
-//        dSerial.println("Nay");
+//        Serial.println("Nay");
 //      }
       
       String jCmd = "AT+CWJAP=\"";
@@ -216,11 +215,11 @@ void loop() {
       
       //sendCommand(jCmd, "", "");
       
-      dSerial.println(jCmd);
-      
       Serial.println(jCmd);
+      
+      ss.println(jCmd);
       delay(5000);
-      if(Serial.find("OK")) {
+      if(ss.find("OK")) {
         digitalWrite(LED_GREEN, HIGH);
       } else {
         digitalWrite(LED_RED, HIGH);
@@ -231,56 +230,56 @@ void loop() {
   //  String cmd = "AT+CIPSTART=\"TCP\",\"";
   //  cmd += DST_IP;
   //  cmd += "\",80";
-  //  Serial.println(cmd);
-  //  dbgSerial.println(cmd);
-  //  if(Serial.find("Error")) return;
+  //  ss.println(cmd);
+  //  dbgss.println(cmd);
+  //  if(ss.find("Error")) return;
   //  cmd = "GET / HTTP/1.0\r\n\r\n";
-  //  Serial.print("AT+CIPSEND=");
-  //  Serial.println(cmd.length());
-  //  if(Serial.find(">"))
+  //  ss.print("AT+CIPSEND=");
+  //  ss.println(cmd.length());
+  //  if(ss.find(">"))
   //  {
-  //    dbgSerial.print(">");
+  //    dbgss.print(">");
   //  }
   //  else
   //  {
-  //    Serial.println("AT+CIPCLOSE");
-  //    dbgSerial.println("connect timeout");
+  //    ss.println("AT+CIPCLOSE");
+  //    dbgss.println("connect timeout");
   //    delay(1000);
   //    return;
   //  }
-  //  Serial.print(cmd);
+  //  ss.print(cmd);
   //  delay(2000);
-  //  //Serial.find("+IPD");
-  //  while (Serial.available())
+  //  //ss.find("+IPD");
+  //  while (ss.available())
   //  {
-  //    char c = Serial.read();
-  //    dbgSerial.write(c);
-  //    if(c=='\r') dbgSerial.print('\n');
+  //    char c = ss.read();
+  //    dbgss.write(c);
+  //    if(c=='\r') dbgss.print('\n');
   //  }
-  //  dbgSerial.println("====");
+  //  dbgss.println("====");
   //  delay(1000);
 }
 
 //
 //boolean connectWiFi()
 //{
-//  Serial.println("AT+CWMODE=1");
+//  ss.println("AT+CWMODE=1");
 //  String cmd="AT+CWJAP=\"";
 //  cmd+=SSID;
 //  cmd+="\",\"";
 //  cmd+=PASS;
 //  cmd+="\"";
-//  dbgSerial.println(cmd);
-//  Serial.println(cmd);
+//  dbgss.println(cmd);
+//  ss.println(cmd);
 //  delay(2000);
-//  if(Serial.find("OK"))
+//  if(ss.find("OK"))
 //  {
-//    dSerial.println("OK, Connected to WiFi.");
+//    Serial.println("OK, Connected to WiFi.");
 //    return true;
 //  }
 //  else
 //  {
-//    dbgSerial.println("Can not connect to the WiFi.");
+//    dbgss.println("Can not connect to the WiFi.");
 //    return false;
 //  }
 //}
@@ -289,48 +288,48 @@ void loop() {
 
 boolean setupAsAP()
 {
-  Serial.println("AT+CIPMUX=1");
-  if (Serial.find("OK"))
+  ss.println("AT+CIPMUX=1");
+  if (ss.find("OK"))
   {
-    dSerial.println("Multiconnection mode enabled");
+    Serial.println("Multiconnection mode enabled");
   }
   else
   {
-    dSerial.println("Multiconnection mode failed");
+    Serial.println("Multiconnection mode failed");
   }
 
-  Serial.println("AT+CWMODE=2");
+  ss.println("AT+CWMODE=2");
   delay(1000);
-  if (Serial.find("OK"))
+  if (ss.find("OK"))
   {
-    dSerial.println("Access Point mode enabled");
+    Serial.println("Access Point mode enabled");
   }
   else
   {
-    dSerial.println("Access Point mode failed to initiate");
+    Serial.println("Access Point mode failed to initiate");
 
   }
 
-  Serial.println("AT+CIPSERVER=1,8080");
+  ss.println("AT+CIPSERVER=1,8080");
   delay(1000);
-  if (Serial.find("OK"))
+  if (ss.find("OK"))
   {
-    dSerial.println("Server is running");
+    Serial.println("Server is running");
   }
   else
   {
-    dSerial.println("Server initiated failed");
+    Serial.println("Server initiated failed");
   }
 
-  Serial.println("AT+CWSAP=\"MORAS\",\"password\",11,0"); //Setup the AP with SSID MORAS, on channel 11, with no password
+  ss.println("AT+CWSAP=\"MORAS\",\"password\",11,0"); //Setup the AP with SSID MORAS, on channel 11, with no password
   delay(1000);
-  if (Serial.find("OK"))
+  if (ss.find("OK"))
   {
-    dSerial.println("OK, accespoint is operational");
+    Serial.println("OK, accespoint is operational");
   }
   else
   {
-    dSerial.println("FAILED, accespoint failed");
+    Serial.println("FAILED, accespoint failed");
   }
   return true;
 }
