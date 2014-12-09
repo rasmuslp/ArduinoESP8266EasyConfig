@@ -33,9 +33,7 @@ void ESP8266EasyConfig::begin(String ssid, uint8_t channel, String password, uin
   }
 
   delay(500);
-  while (_serial.available() > 0) {
-    _serial.read();
-  }
+  _serial.find("ready");
 
   // Check device is OK
   if (sendCmd("AT", "OK")) {
