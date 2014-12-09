@@ -19,7 +19,7 @@ String pass;
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("ESP8266 AP setup");
+  Serial.begin("EasyConfig sketch starting...");
   ss.begin(9600);
   easyConfig.begin("MORAS");
 
@@ -27,11 +27,13 @@ void setup() {
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_BLUE, OUTPUT);
+  Serial.begin("EasyConfig sketch starting done");
 }
 
 void loop() {
   if (digitalRead(RESET_BTN)) {
     // Reset
+    Serial.println("Reset button was pressed");
     easyConfig.reset();
   }
 }
