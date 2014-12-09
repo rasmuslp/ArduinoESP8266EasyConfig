@@ -21,10 +21,6 @@ void ESP8266EasyConfig::begin(String ssid, uint8_t channel, String password, uin
   _password = password;
   _encryption = encryption;
 
-  while (_serial.available() > 0) {
-    _serial.read();
-  }
-
   // Reset module
   if (sendCmd("AT+RST", "OK")) {
     Serial.println(F("ESP8266 Reset OK"));
