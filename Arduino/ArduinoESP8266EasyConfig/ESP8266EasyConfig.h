@@ -3,10 +3,10 @@
 
 #include "Arduino.h"
 
-#define BUFFER_SIZE 512
+#define BUFFER_SIZE 256
 
 #define CMD_BUF_SIZE 64
-#define READ_BUF_SIZE 128
+#define READ_BUF_SIZE 64
 
 class ESP8266EasyConfig {
   public:
