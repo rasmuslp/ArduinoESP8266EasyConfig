@@ -2,6 +2,8 @@
 
 #include "ESP8266EasyConfig.h"
 
+#include "Utility.h"
+
 ESP8266EasyConfig::ESP8266EasyConfig(Stream &serial) : _serial(serial) {
   _serial.setTimeout(5000);
   _ackBuf[0] = '\0';
@@ -101,8 +103,8 @@ void ESP8266EasyConfig::begin(String ssid, uint8_t channel, String password, uin
       // Parse commands
       if (command.equals("join")) {
         Serial.println(F("Got join command"));
-        String ssid = findValue(readValue, "ssid");
-        String pass = findValue(readValue, "pass");
+        String ssid = Utility::findValue(readValue, "ssid");
+        String pass = Utility::findValue(readValue, "pass");
         Serial.print("SSID: ");
         Serial.println(ssid);
         Serial.print("Password: ");
@@ -248,34 +250,6 @@ boolean ESP8266EasyConfig::sendCmd(char* command, char* successCriteria, boolean
   }
 
   return false;
-}
-
-String ESP8266EasyConfig::findValue(String input, String key) {
-  Serial.println("Got: " + input);
-
-  String ret = "Key not found: " + key;
-  int eqIndex = input.indexOf('=');
-  while (eqIndex > -1) {
-    String k = input.substring(0, eqIndex);
-    Serial.println("Found key: " + k);
-    String v;
-    int ampIndex = input.indexOf('&');
-    if (ampIndex > -1) {
-      v = input.substring(eqIndex + 1, ampIndex);
-      input = input.substring(ampIndex + 1);
-    } else {
-      v = input.substring(eqIndex + 1);
-    }
-    Serial.println("Found value: " + v);
-    if (k.equals(key)) {
-      ret = v;
-      break;
-    } else {
-      eqIndex = input.indexOf('=');
-    }
-  }
-
-  return ret;
 }
 
 String ESP8266EasyConfig::receiveData() {

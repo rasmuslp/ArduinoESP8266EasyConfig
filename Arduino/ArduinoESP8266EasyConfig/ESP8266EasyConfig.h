@@ -41,9 +41,6 @@ class ESP8266EasyConfig {
     void burnBuffer();    
     void chewCRLF();
     
-    // Utility
-    String findValue(String input, String key);
-    
     // Remove
     String sendCommand(String command, boolean transaction = true);
     String readCom();
