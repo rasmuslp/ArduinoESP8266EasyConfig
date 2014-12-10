@@ -41,14 +41,19 @@ void loop() {
     easyConfig.reset();
   }
   
-  uint8_t id = -1;
+  int8_t id = -1;
   String readData = easyConfig.receiveData(id);
   if (id > -1) {
     Serial.print(F("Got data. ID: "));
     Serial.print(id);
     Serial.print(F(" data: "));
     Serial.println(readData);
+    ss.println("AT+CIPSEND=1,15");
+    ss.find("> ");
+    delay(100);
+    ss.println("mortenmortenmor");
     easyConfig.sendData(id, "ROFL");
+    
   }
 }
 

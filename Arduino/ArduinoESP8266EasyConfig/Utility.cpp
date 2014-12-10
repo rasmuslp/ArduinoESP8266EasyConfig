@@ -15,6 +15,7 @@ String Utility::findValue(String input, String key) {
       input = input.substring(ampIndex + 1);
     } else {
       v = input.substring(eqIndex + 1);
+      input = v;
     }
     Serial.println("Found value: " + v);
     if (k.equals(key)) {

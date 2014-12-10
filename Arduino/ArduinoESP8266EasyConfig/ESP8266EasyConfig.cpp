@@ -46,6 +46,11 @@ void ESP8266EasyConfig::begin(String ssid, uint8_t channel, String password, uin
   } else {
     Serial.println(F("ESP8266 did not get firmware version"));
   }
+  
+  delay(5000);
+  
+  sendCommand("AT+CWSAP?", true);
+  sendCommand("AT+CWJAP?", true);
 
   // Get CWMODE
   if (sendCmd("AT+CWMODE?", "OK", true)) {
@@ -97,7 +102,7 @@ void ESP8266EasyConfig::begin(String ssid, uint8_t channel, String password, uin
       Serial.println(F("Command:"));
       Serial.println(command);
 
-      //TODO
+      // Starts after <command>/?
       readValue = readValue.substring(commandDelimiter + 2);
 
       // Parse commands
@@ -112,7 +117,7 @@ void ESP8266EasyConfig::begin(String ssid, uint8_t channel, String password, uin
 
         //TODO Save SSID and pass ?
 
-        sendCommand("AT+CIPSERVER=0,80");
+        //sendCommand("AT+CIPSERVER=0,80");
 
         //        if (sendCmd("AT+CIPSERVER=0,80", "OK")) {
         //          Serial.println(F("ESP8266 Server is stopped"));
@@ -120,7 +125,7 @@ void ESP8266EasyConfig::begin(String ssid, uint8_t channel, String password, uin
         //          Serial.println(F("ESP8266 Server failed to stop"));
         //        }
 
-        if (sendCmd("AT+CWMODE=1", "OK")) {
+        if (sendCmd("AT+CWMODE=3", "OK")) {
           Serial.println(F("ESP8266 Changed to STA mode"));
         } else {
           Serial.println(F("ESP8266 Change to STA mode failed"));
@@ -135,6 +140,7 @@ void ESP8266EasyConfig::begin(String ssid, uint8_t channel, String password, uin
         Serial.print(F("ESP8266 Joining SSID "));
         Serial.println(ssid);
         sendCommand(_cmdBuf);
+        break;
 //        if (sendCmd(_cmdBuf, "OK")) {
 //          Serial.println(F("ESP8266 Joined"));
 //          break;
@@ -148,12 +154,17 @@ void ESP8266EasyConfig::begin(String ssid, uint8_t channel, String password, uin
     }
 
   }
+  
+  delay(2000);
 
-  if (sendCmd("AT+CIPSERVER=1,80", "OK")) {
-    Serial.println(F("ESP8266 Server is running"));
-  } else {
-    Serial.println(F("ESP8266 Server initialization failed"));
-  }
+  burnBuffer();
+//  if (sendCmd("AT+CIPSERVER=1,80", "OK")) {
+//    Serial.println(F("ESP8266 Server is running"));
+//  } else {
+//    Serial.println(F("ESP8266 Server initialization failed"));
+//  }
+  burnBuffer();
+  
 
   // Get IP
   sendCommand("AT+CIFSR");
@@ -183,7 +194,7 @@ boolean ESP8266EasyConfig::setupAP() {
     Serial.println(F("ESP8266 Multiconnection mode failed"));
   }
 
-  sendCommand("AT+CWMODE=2");
+  sendCommand("AT+CWMODE=3");
 
 
   //  _serial.println("AT+CWMODE=2");
@@ -253,11 +264,11 @@ boolean ESP8266EasyConfig::sendCmd(char* command, char* successCriteria, boolean
 }
 
 String ESP8266EasyConfig::receiveData() {
-  uint8_t id;
+  int8_t id;
   return receiveData(id);
 }
 
-String ESP8266EasyConfig::receiveData(uint8_t &id) {
+String ESP8266EasyConfig::receiveData(int8_t &id) {
   if (!_serial.find("+IPD,")) {
     return "";
   }
@@ -280,7 +291,7 @@ String ESP8266EasyConfig::receiveData(uint8_t &id) {
     Serial.println(idString);
     int idInt = idString.toInt();
     Serial.println(idInt);
-    id = (uint8_t) idInt;
+    id = (int8_t) idInt;
     Serial.println(id);
     readData = readData.substring(startDelimiter + 1);
   } else {
@@ -294,17 +305,25 @@ String ESP8266EasyConfig::receiveData(uint8_t &id) {
   return readData;
 }
 
-String ESP8266EasyConfig::sendData(uint8_t id, String data) {
-  String sendCommand = "AT+CIPSEND=";
-  sendCommand += id;
-  sendCommand += ",";
-  sendCommand += data.length();
-  sendCommand.toCharArray(_cmdBuf, CMD_BUF_SIZE);
-  if (sendCmd(_cmdBuf, "OK")) {
-    Serial.println(F("ESP8266 Access point operational!"));
+String ESP8266EasyConfig::sendData(int8_t id, String data) {
+  String sendCmd = "AT+CIPSEND=";
+  sendCmd += id;
+  sendCmd += ",";
+  sendCmd += data.length();
+  _serial.println(sendCmd);
+  if(_serial.find(">")) {
+    _serial.print(data);
   } else {
-    Serial.println(F("ESP8266 Access point initialization failed"));
+    _serial.print("AT+CIPCLOSE=");
+    _serial.println(id);
   }
+  sendCmd.toCharArray(_cmdBuf, CMD_BUF_SIZE);
+  sendCommand(sendCmd, true);
+//  if (sendCmd(_cmdBuf, "OK")) {
+//    Serial.println(F("ESP8266 Send starting"));
+//  } else {
+//    Serial.println(F("ESP8266 Failed to start sending"));
+//  }
 }
 
 void ESP8266EasyConfig::burnBuffer() {

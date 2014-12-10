@@ -17,8 +17,8 @@ class ESP8266EasyConfig {
     void reset();
     
     String receiveData();
-    String receiveData(uint8_t &id);
-    String sendData(uint8_t id, String data);
+    String receiveData(int8_t &id);
+    String sendData(int8_t id, String data);
    
   private:
     Stream &_serial;
