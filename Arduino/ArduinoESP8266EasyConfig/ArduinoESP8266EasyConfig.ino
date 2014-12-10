@@ -14,8 +14,7 @@
 SoftwareSerial ss(SOFT_SERIAL_RX, SOFT_SERIAL_TX); // RX, TX
 ESP8266EasyConfig easyConfig(ss);
 
-String ssid;
-String pass;
+long lastTimestamp = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -31,10 +30,25 @@ void setup() {
 }
 
 void loop() {
+  long timestamp = millis();
+  Serial.print("Time: ");
+  Serial.println(timestamp - lastTimestamp);
+  lastTimestamp = timestamp;
+  
   if (digitalRead(RESET_BTN)) {
     // Reset
     Serial.println(F("Reset button was pressed"));
     easyConfig.reset();
+  }
+  
+  uint8_t id = -1;
+  String readData = easyConfig.receiveData(id);
+  if (id > -1) {
+    Serial.print(F("Got data. ID: "));
+    Serial.print(id);
+    Serial.print(F(" data: "));
+    Serial.println(readData);
+    easyConfig.sendData(id, "ROFL");
   }
 }
 

@@ -15,7 +15,7 @@ ESP8266EasyConfig::~ESP8266EasyConfig() {
 
 void ESP8266EasyConfig::begin(String ssid, uint8_t channel, String password, uint8_t encryption) {
   Serial.println(F("ESP8266 EasyConfig beginning..."));
-  
+
   _ssid = ssid;
   _channel = channel;
   _password = password;
@@ -27,7 +27,6 @@ void ESP8266EasyConfig::begin(String ssid, uint8_t channel, String password, uin
   } else {
     Serial.println(F("ESP8266 Reset failed"));
   }
-
   delay(500);
   _serial.find("ready");
 
@@ -108,17 +107,16 @@ void ESP8266EasyConfig::begin(String ssid, uint8_t channel, String password, uin
         Serial.println(ssid);
         Serial.print("Password: ");
         Serial.println(pass);
-        
+
         //TODO Save SSID and pass ?
 
-        sendCommand("AT+CIPSERVER=0,8080");
-        //      _serial.println();
-        //      delay(500);
-        //      if(_serial.find("OK")) {
-        //        Serial.println("Yay");
-        //      } else {
-        //        Serial.println("Nay");
-        //      }
+        sendCommand("AT+CIPSERVER=0,80");
+
+        //        if (sendCmd("AT+CIPSERVER=0,80", "OK")) {
+        //          Serial.println(F("ESP8266 Server is stopped"));
+        //        } else {
+        //          Serial.println(F("ESP8266 Server failed to stop"));
+        //        }
 
         if (sendCmd("AT+CWMODE=1", "OK")) {
           Serial.println(F("ESP8266 Changed to STA mode"));
@@ -134,19 +132,36 @@ void ESP8266EasyConfig::begin(String ssid, uint8_t channel, String password, uin
         joinCmd.toCharArray(_cmdBuf, CMD_BUF_SIZE);
         Serial.print(F("ESP8266 Joining SSID "));
         Serial.println(ssid);
-        if (sendCmd(_cmdBuf, "OK")) {
-          Serial.println(F("ESP8266 Joined"));
-          break;
-        } else {
-          Serial.println(F("ESP8266 Join failed"));
-        }
+        sendCommand(_cmdBuf);
+//        if (sendCmd(_cmdBuf, "OK")) {
+//          Serial.println(F("ESP8266 Joined"));
+//          break;
+//        } else {
+//          Serial.println(F("ESP8266 Join failed"));
+//        }
 
       }
 
 
     }
+
   }
-  
+
+  if (sendCmd("AT+CIPSERVER=1,80", "OK")) {
+    Serial.println(F("ESP8266 Server is running"));
+  } else {
+    Serial.println(F("ESP8266 Server initialization failed"));
+  }
+
+  // Get IP
+  sendCommand("AT+CIFSR");
+  if (sendCmd("AT+CIFSR", "OK", true)) {
+    Serial.print(F("ESP8266 Got IP: "));
+    Serial.println(_readBuf);
+  } else {
+    Serial.println(F("ESP8266 Failed to get IP"));
+  }
+
   Serial.println(F("ESP8266 EasyConfig done!"));
 }
 
@@ -181,7 +196,7 @@ boolean ESP8266EasyConfig::setupAP() {
   //
   //  }
 
-  if (sendCmd("AT+CIPSERVER=1,8080", "OK")) {
+  if (sendCmd("AT+CIPSERVER=1,80", "OK")) {
     Serial.println(F("ESP8266 Server is running"));
   } else {
     Serial.println(F("ESP8266 Server initialization failed"));
@@ -264,34 +279,64 @@ String ESP8266EasyConfig::findValue(String input, String key) {
 }
 
 String ESP8266EasyConfig::receiveData() {
+  uint8_t id;
+  return receiveData(id);
+}
+
+String ESP8266EasyConfig::receiveData(uint8_t &id) {
   if (!_serial.find("+IPD,")) {
     return "";
   }
 
-  String ret = _serial.readStringUntil('\r');
+  String readData = _serial.readStringUntil('\r');
   boolean dataOk = true;
 
-  int connectionIdDelimiter = ret.indexOf(',');
+  int connectionIdDelimiter = readData.indexOf(',');
   if (connectionIdDelimiter == -1) {
     dataOk = false;
   }
 
-  int startDelimiter = ret.indexOf(':');
+  int startDelimiter = readData.indexOf(':');
   if (startDelimiter == -1) {
     dataOk = false;
   }
 
   if (dataOk) {
-    Serial.print("Conn ID: ");
-    Serial.println(ret.substring(0, connectionIdDelimiter));
-    ret = ret.substring(startDelimiter + 1);
+    String idString = readData.substring(0, connectionIdDelimiter);
+    Serial.println(idString);
+    int idInt = idString.toInt();
+    Serial.println(idInt);
+    id = (uint8_t) idInt;
+    Serial.println(id);
+    readData = readData.substring(startDelimiter + 1);
   } else {
     Serial.println(F("Data malformed?"));
-    Serial.println(ret);
-    ret = "";
+    Serial.println(readData);
+    readData = "";
   }
 
-  return ret;
+  burnBuffer();
+
+  return readData;
+}
+
+String ESP8266EasyConfig::sendData(uint8_t id, String data) {
+  String sendCommand = "AT+CIPSEND=";
+  sendCommand += id;
+  sendCommand += ",";
+  sendCommand += data.length();
+  sendCommand.toCharArray(_cmdBuf, CMD_BUF_SIZE);
+  if (sendCmd(_cmdBuf, "OK")) {
+    Serial.println(F("ESP8266 Access point operational!"));
+  } else {
+    Serial.println(F("ESP8266 Access point initialization failed"));
+  }
+}
+
+void ESP8266EasyConfig::burnBuffer() {
+  while (_serial.available() > 0) {
+    _serial.read();
+  }
 }
 
 void ESP8266EasyConfig::chewCRLF() {

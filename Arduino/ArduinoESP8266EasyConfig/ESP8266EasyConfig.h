@@ -15,7 +15,11 @@ class ESP8266EasyConfig {
     void begin(String ssid, uint8_t channel = 11, String password = "", uint8_t encryption = 0);
     void end();
     void reset();
-
+    
+    String receiveData();
+    String receiveData(uint8_t &id);
+    String sendData(uint8_t id, String data);
+   
   private:
     Stream &_serial;
     String _ssid;
@@ -32,10 +36,13 @@ class ESP8266EasyConfig {
     boolean setupAP();
     boolean sendCmd(char* command, char* successCriteria, boolean expectData = false);
     
-    String findValue(String input, String key);
-    String receiveData();
-    
+
+    // Serial modification
+    void burnBuffer();    
     void chewCRLF();
+    
+    // Utility
+    String findValue(String input, String key);
     
     // Remove
     String sendCommand(String command, boolean transaction = true);
