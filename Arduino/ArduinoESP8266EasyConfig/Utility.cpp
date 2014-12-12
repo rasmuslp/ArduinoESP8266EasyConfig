@@ -1,6 +1,6 @@
 #include "Utility.h"
 
-String Utility::findValue(String input, String key) {
+String Utility::findValue(String input, const String key) {
   Serial.println("Got: " + input);
 
   String ret = "Key not found: " + key;
@@ -27,4 +27,20 @@ String Utility::findValue(String input, String key) {
   }
 
   return ret;
+}
+
+int8_t Utility::findNoOccurrences(const String input, const String searchingFor) {
+  int last = input.lastIndexOf(searchingFor);
+  if (last == -1) {
+    return 0;
+  }
+  
+  int8_t occurrences = 1;
+  int first = input.indexOf(searchingFor);
+  while (first < last) {
+    occurrences++;
+    first = input.indexOf(searchingFor, first + 1);
+  }
+  
+  return occurrences;
 }
