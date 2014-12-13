@@ -79,10 +79,10 @@ class ESP8266EasyConfig {
 
     // Serial modification
     void burnBuffer(void);
-    void print(const __FlashStringHelper *fsh);
-    void print(const String &s);
-    void println(const __FlashStringHelper *fsh);
-    void println(const String &s);
+    void com(const __FlashStringHelper *fsh);
+    void com(const String &s);
+    void comln(const __FlashStringHelper *fsh);
+    void comln(const String &s);
 };
 
 #endif

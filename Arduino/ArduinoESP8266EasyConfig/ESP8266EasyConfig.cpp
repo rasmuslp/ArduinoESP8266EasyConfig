@@ -27,7 +27,7 @@ bool ESP8266EasyConfig::getFirmwareInfo(String &data) {
     return false;
   }
 
-  println(F("AT+GMR"));
+  comln(F("AT+GMR"));
 
   if (!readCmdResult(data)) {
     return false;
@@ -93,7 +93,7 @@ int8_t ESP8266EasyConfig::getMode() {
     return false;
   }
 
-  println(F("AT+CWMODE?"));
+  comln(F("AT+CWMODE?"));
 
   String data = "";
   if (!readCmdResult(data)) {
@@ -117,8 +117,8 @@ bool ESP8266EasyConfig::setMode(const uint8_t mode) {
     return false;
   }
 
-  print(F("AT+CWMODE="));
-  println(String(mode));
+  com(F("AT+CWMODE="));
+  comln(String(mode));
 
   String data = "";
   return readCmdResult(data);
@@ -129,7 +129,7 @@ bool ESP8266EasyConfig::listWifis(String &data) {
     return false;
   }
 
-  println(F("AT+CWLAP"));
+  comln(F("AT+CWLAP"));
 
   bool success = readCmdResult(data, 10000);
   if (!success) {
@@ -156,14 +156,14 @@ bool ESP8266EasyConfig::joinAP(const String ssid, const String password) {
     return false;
   }
 
-  print(F("AT+CWJAP="));
-  print(F("\""));
-  print(ssid);
-  print(F("\""));
-  print(F(","));
-  print(F("\""));
-  print(password);
-  println("\"");
+  com(F("AT+CWJAP="));
+  com(F("\""));
+  com(ssid);
+  com(F("\""));
+  com(F(","));
+  com(F("\""));
+  com(password);
+  comln("\"");
 
   String data = "";
   return readCmdResult(data, 25000);
@@ -174,7 +174,7 @@ bool ESP8266EasyConfig::getAPInfo(String &ssid) {
     return false;
   }
 
-  println(F("AT+CWJAP?"));
+  comln(F("AT+CWJAP?"));
 
   String data = "";
   if (!readCmdResult(data)) {
@@ -195,7 +195,7 @@ bool ESP8266EasyConfig::leaveAP(void) {
     return false;
   }
 
-  println(F("AT+CWQAP"));
+  comln(F("AT+CWQAP"));
 
   String data = "";
   return readCmdResult(data);
@@ -206,18 +206,18 @@ bool ESP8266EasyConfig::hostSoftAP(const String ssid, const String password, con
     return false;
   }
 
-  print(F("AT+CWSAP="));
-  print(F("\""));
-  print(ssid);
-  print(F("\""));
-  print(F(","));
-  print(F("\""));
-  print(password);
-  print("\"");
-  print(F(","));
-  print(String(channel));
-  print(F(","));
-  println(String(encryption));
+  com(F("AT+CWSAP="));
+  com(F("\""));
+  com(ssid);
+  com(F("\""));
+  com(F(","));
+  com(F("\""));
+  com(password);
+  com("\"");
+  com(F(","));
+  com(String(channel));
+  com(F(","));
+  comln(String(encryption));
 
   String data = "";
   return readCmdResult(data);
@@ -228,7 +228,7 @@ bool ESP8266EasyConfig::getSoftAPInfo(String &data) {
     return false;
   }
 
-  println(F("AT+CWSAP?"));
+  comln(F("AT+CWSAP?"));
 
   if (!readCmdResult(data)) {
     return false;
@@ -246,7 +246,7 @@ bool ESP8266EasyConfig::getSoftAPConnectionIPs(String &data) {
     return false;
   }
 
-  println(F("AT+CWLIF"));
+  comln(F("AT+CWLIF"));
 
   if (!readCmdResult(data)) {
     return false;
@@ -264,7 +264,7 @@ bool ESP8266EasyConfig::reset(void) {
 
   bool success = false;
 
-  println(F("AT+RST"));
+  comln(F("AT+RST"));
   unsigned long start = millis();
   while (millis() - start < 5000) {
     if (_serial.find("ready")) {
@@ -315,7 +315,7 @@ bool ESP8266EasyConfig::readCmdResult(String &data, const uint16_t timeoutInMs) 
 }
 
 bool ESP8266EasyConfig::easyConfig(const String ssid, const String password, const uint8_t channel, const uint8_t encryption) {
-  Serial.println(F("ESP8266 EasyConfig beginning..."));
+  DBGLN(F("ESP8266 EasyConfig beginning..."));
 
   _ssid = ssid;
   _password = password;
@@ -331,7 +331,7 @@ bool ESP8266EasyConfig::easyConfig(const String ssid, const String password, con
         return false;
       }
 
-      println(F("AT+CIPMUX=1"));
+      comln(F("AT+CIPMUX=1"));
       data = "";
       if (!readCmdResult(data)) {
         DBGLN(F("ESP (easyConfig) Could not enable multiconnection mode."));
@@ -339,7 +339,7 @@ bool ESP8266EasyConfig::easyConfig(const String ssid, const String password, con
         return false;
       }
 
-      println(F("AT+CIPSERVER=1,80"));
+      comln(F("AT+CIPSERVER=1,80"));
       data = "";
       if (!readCmdResult(data)) {
         DBGLN(F("ESP (easyConfig) Could not start server."));
@@ -402,7 +402,7 @@ bool ESP8266EasyConfig::easyConfig(const String ssid, const String password, con
 
         //TODO: Close connection
 
-        println(F("AT+CIPSERVER=0,80"));
+        comln(F("AT+CIPSERVER=0,80"));
         data = "";
         if (!readCmdResult(data)) {
           DBGLN(F("ESP (easyConfig) Could not close server."));
@@ -424,7 +424,7 @@ bool ESP8266EasyConfig::easyConfig(const String ssid, const String password, con
 
   burnBuffer();
 
-  println(F("AT+CIFSR"));
+  comln(F("AT+CIFSR"));
   data = "";
   if (!readCmdResult(data)) {
     DBGLN(F("ESP (easyConfig) Failed to read IP."));
@@ -486,22 +486,22 @@ void ESP8266EasyConfig::burnBuffer(void) {
   }
 }
 
-void ESP8266EasyConfig::print(const __FlashStringHelper *fsh) {
+void ESP8266EasyConfig::com(const __FlashStringHelper *fsh) {
   Serial.print(fsh);
   _serial.print(fsh);
 }
 
-void ESP8266EasyConfig::print(const String &s) {
+void ESP8266EasyConfig::com(const String &s) {
   Serial.print(s);
   _serial.print(s);
 }
 
-void ESP8266EasyConfig::println(const __FlashStringHelper *fsh) {
+void ESP8266EasyConfig::comln(const __FlashStringHelper *fsh) {
   Serial.println(fsh);
   _serial.println(fsh);
 }
 
-void ESP8266EasyConfig::println(const String &s) {
+void ESP8266EasyConfig::comln(const String &s) {
   Serial.println(s);
   _serial.println(s);
 }
