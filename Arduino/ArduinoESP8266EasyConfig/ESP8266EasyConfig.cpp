@@ -71,7 +71,7 @@ bool ESP8266EasyConfig::initialize(const uint8_t mode, const String ssid, const 
 
   // Host AP
   if (mode == AP || mode == AP_STA) {
-    success = hostAP(ssid, password, channel, encryption);
+    success = hostSoftAP(ssid, password, channel, encryption);
     if (!success) {
       return false;
     }
@@ -88,13 +88,10 @@ int8_t ESP8266EasyConfig::getMode() {
   println(F("AT+CWMODE?"));
   
   String data = "";
-  bool success = readCmdResult(data);
-  if (!success) {
-    DBG(F("ESP (getMode) Error: "));
-    DBGLN(data);
+  if (!readCmdResult(data)) {
     return -1;
   }
-  
+
   int8_t mode = -1;
   if (data.indexOf(String(STA)) != -1) {
     mode = STA;
@@ -116,14 +113,7 @@ bool ESP8266EasyConfig::setMode(const uint8_t mode) {
   println(String(mode));
 
   String data = "";
-  bool success = readCmdResult(data);
-  if (!success) {
-    DBG(F("ESP (setMode) Error: "));
-    DBGLN(data);
-    return false;
-  }
-
-  return true;
+  return readCmdResult(data);
 }
 
 bool ESP8266EasyConfig::listWifis(String &data) {
@@ -145,9 +135,9 @@ bool ESP8266EasyConfig::listWifis(String &data) {
   DBGLN(occurrences);
   
   //TODO: Extract information about available APs
-  data.replace("AT+CWLAP", "");
-  data.replace("+CWLAP:", "WiFi ");
-  data.replace("OK", "");
+  data.replace(F("AT+CWLAP"), "");
+  data.replace(F("+CWLAP:"), "WiFi ");
+  data.replace(F("OK"), "");
   data.trim();
   
   return true;
@@ -168,17 +158,42 @@ bool ESP8266EasyConfig::joinAP(const String ssid, const String password) {
   println("\"");
 
   String data = "";
-  bool success = readCmdResult(data, 25000);
-  if (!success) {
-    DBG(F("ESP (joinAP) Error: "));
-    DBGLN(data);
+  return readCmdResult(data, 25000);
+}
+
+bool ESP8266EasyConfig::getAPInfo(String &ssid) {
+  if (!_modulePresent) {
     return false;
   }
 
+  println(F("AT+CWJAP?"));
+
+  String data = "";
+  if (!readCmdResult(data)) {
+    return false;
+  }
+  data.replace(F("AT+CWJAP?"), "");
+  data.replace(F("+CWJAP?:\""), "");
+  data.replace(F("\""), "");
+  data.replace(F("OK"), "");
+  data.trim();
+  ssid = data;
+  
   return true;
 }
 
-bool ESP8266EasyConfig::hostAP(const String ssid, const String password, const uint8_t channel, const uint8_t encryption) {
+bool ESP8266EasyConfig::leaveAP(void) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  println(F("AT+CWQAP"));
+
+  String data = "";
+  return readCmdResult(data);
+}
+
+bool ESP8266EasyConfig::hostSoftAP(const String ssid, const String password, const uint8_t channel, const uint8_t encryption) {
   if (!_modulePresent) {
     return false;
   }
@@ -197,13 +212,42 @@ bool ESP8266EasyConfig::hostAP(const String ssid, const String password, const u
   println(String(encryption));
 
   String data = "";
-  bool success = readCmdResult(data);
-  if (!success) {
-    DBG(F("ESP (hostAP) Error: "));
-    DBGLN(data);
+  return readCmdResult(data);
+}
+
+bool ESP8266EasyConfig::getSoftAPInfo(String &data) {
+  if (!_modulePresent) {
     return false;
   }
 
+  println(F("AT+CWSAP?"));
+
+  if (!readCmdResult(data)) {
+    return false;
+  }
+  data.replace(F("AT+CWSAP?"), "");
+  data.replace(F("+CWSAP?:"), "");
+  data.replace(F("OK"), "");
+  data.trim();
+  
+  return true;
+}
+
+bool ESP8266EasyConfig::getSoftAPConnectionIPs(String &data) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  println(F("AT+CWLIF"));
+
+  if (!readCmdResult(data)) {
+    return false;
+  }
+  data.replace(F("AT+CWLIF"), "");
+  data.replace(F("+CWSAP?:"), "");
+  data.replace(F("OK"), "");
+  data.trim();
+  
   return true;
 }
 

@@ -50,7 +50,13 @@ class ESP8266EasyConfig {
     bool listWifis(String &data);
     
     bool joinAP(const String ssid, const String password);
-    bool hostAP(const String ssid, const String password, const uint8_t channel, const uint8_t encryption);
+    bool getAPInfo(String &ssid);
+    bool leaveAP(void);
+    
+    bool hostSoftAP(const String ssid, const String password, const uint8_t channel, const uint8_t encryption);
+    bool getSoftAPInfo(String &data);
+    bool getSoftAPConnectionIPs(String &data);
+    
     bool reset(void);
 
     
