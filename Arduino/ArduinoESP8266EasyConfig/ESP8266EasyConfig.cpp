@@ -31,6 +31,23 @@ bool ESP8266EasyConfig::begin(void) {
   return _modulePresent;
 }
 
+bool ESP8266EasyConfig::getFirmwareInfo(String &data) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  println(F("AT+GMR"));
+
+  if (!readCmdResult(data)) {
+    return false;
+  }
+  data.replace(F("AT+GMR"), "");
+  data.replace(F("OK"), "");
+  data.trim();
+
+  return true;
+}
+
 bool ESP8266EasyConfig::initialize(const uint8_t mode, const String ssid, const String password, const uint8_t channel, const uint8_t encryption) {
   if (!_modulePresent) {
     return false;
@@ -84,9 +101,9 @@ int8_t ESP8266EasyConfig::getMode() {
   if (!_modulePresent) {
     return false;
   }
-  
+
   println(F("AT+CWMODE?"));
-  
+
   String data = "";
   if (!readCmdResult(data)) {
     return -1;
@@ -100,7 +117,7 @@ int8_t ESP8266EasyConfig::getMode() {
   } else if (data.indexOf(String(AP_STA)) != -1) {
     mode = AP_STA;
   }
-  
+
   return mode;
 }
 
@@ -120,7 +137,7 @@ bool ESP8266EasyConfig::listWifis(String &data) {
   if (!_modulePresent) {
     return false;
   }
-  
+
   println(F("AT+CWLAP"));
 
   bool success = readCmdResult(data, 10000);
@@ -129,17 +146,17 @@ bool ESP8266EasyConfig::listWifis(String &data) {
     DBGLN(data);
     return false;
   }
-  
+
   int8_t occurrences = Utility::findNoOccurrences(data, "+CWLAP:");
   DBG(F("Number of APs: "));
   DBGLN(occurrences);
-  
+
   //TODO: Extract information about available APs
   data.replace(F("AT+CWLAP"), "");
   data.replace(F("+CWLAP:"), "WiFi ");
   data.replace(F("OK"), "");
   data.trim();
-  
+
   return true;
 }
 
@@ -178,7 +195,7 @@ bool ESP8266EasyConfig::getAPInfo(String &ssid) {
   data.replace(F("OK"), "");
   data.trim();
   ssid = data;
-  
+
   return true;
 }
 
@@ -229,7 +246,7 @@ bool ESP8266EasyConfig::getSoftAPInfo(String &data) {
   data.replace(F("+CWSAP?:"), "");
   data.replace(F("OK"), "");
   data.trim();
-  
+
   return true;
 }
 
@@ -247,7 +264,7 @@ bool ESP8266EasyConfig::getSoftAPConnectionIPs(String &data) {
   data.replace(F("+CWSAP?:"), "");
   data.replace(F("OK"), "");
   data.trim();
-  
+
   return true;
 }
 
@@ -306,54 +323,39 @@ bool ESP8266EasyConfig::readCmdResult(String &data, const uint16_t timeoutInMs) 
   return false;
 }
 
-void ESP8266EasyConfig::easyConfig(String ssid, uint8_t channel, String password, uint8_t encryption) {
+bool ESP8266EasyConfig::easyConfig(const String ssid, const String password, const uint8_t channel, const uint8_t encryption) {
   Serial.println(F("ESP8266 EasyConfig beginning..."));
 
   _ssid = ssid;
-  _channel = channel;
   _password = password;
+  _channel = channel;
   _encryption = encryption;
 
-  // Reset module
-  if (sendCmd("AT+RST", "OK")) {
-    Serial.println(F("ESP8266 Reset OK"));
-  } else {
-    Serial.println(F("ESP8266 Reset failed"));
-  }
-  delay(500);
-  _serial.find("ready");
-
-  // Check device is OK
-  if (sendCmd("AT", "OK")) {
-    Serial.println(F("ESP8266 is found!"));
-  } else {
-    Serial.println(F("ESP8266 not found!"));
-  }
-
-  // Get firmware version
-  if (sendCmd("AT+GMR", "OK", true)) {
-    Serial.print(F("ESP8266 Got firmware version: "));
-    Serial.println(_readBuf);
-  } else {
-    Serial.println(F("ESP8266 did not get firmware version"));
-  }
-
-  delay(5000);
-
-  sendCommand("AT+CWSAP?", true);
-  sendCommand("AT+CWJAP?", true);
-
-  // Get CWMODE
-  if (sendCmd("AT+CWMODE?", "OK", true)) {
-    Serial.print(F("ESP8266 Is in CWMODE: "));
-    Serial.println(_readBuf);
-  } else {
-    Serial.println(F("ESP8266 Could not get CWMODE"));
-  }
+  String data = "";
 
   while (true) {
-    if (!_serverIsRunning) {
-      _serverIsRunning = setupAP();
+    if (!_easyConfigServer) {
+      if (!initialize(AP, _ssid, _password, _channel, _encryption)) {
+        DBGLN(F("ESP (easyConfig) Could not start soft AP."));
+        return false;
+      }
+
+      println(F("AT+CIPMUX=1"));
+      data = "";
+      if (!readCmdResult(data)) {
+        DBGLN(F("ESP (easyConfig) Could not enable multiconnection mode."));
+        //TODO: Fail gracefully instead
+        return false;
+      }
+
+      println(F("AT+CIPSERVER=1,80"));
+      data = "";
+      if (!readCmdResult(data)) {
+        DBGLN(F("ESP (easyConfig) Could not start server."));
+        return false;
+      }
+
+      _easyConfigServer = true;
     } else {
       String readValue = receiveData();
       if (readValue.equals("")) {
@@ -364,189 +366,88 @@ void ESP8266EasyConfig::easyConfig(String ssid, uint8_t channel, String password
       int reqStart = readValue.indexOf("GET /");
       if (reqStart == -1) {
         // No request start, leaving...
-        Serial.print(F("Invalid request: "));
-        Serial.println(readValue);
+        DBG(F("Invalid request: "));
+        DBGLN(readValue);
         continue;
       }
       int reqEnd = readValue.lastIndexOf(" HTTP/");
       if (reqEnd == -1) {
         // No request end, leaving...
-        Serial.print(F("Invalid request: "));
-        Serial.println(readValue);
+        DBG(F("Invalid request: "));
+        DBGLN(readValue);
         continue;
       }
 
       readValue = readValue.substring(reqStart + 5, reqEnd);
 
-      //TODO: Remove
-      Serial.println(readValue);
-
       // Read command
       int commandDelimiter = readValue.indexOf('/');
       if (commandDelimiter == -1) {
         // No command delimiter, leaving...
-        Serial.print(F("Invalid command: "));
-        Serial.println(readValue);
+        DBG(F("Invalid command: "));
+        DBGLN(readValue);
         continue;
       }
       String command = readValue.substring(0, commandDelimiter);
-      Serial.println(F("Command:"));
-      Serial.println(command);
+      DBG(F("Command:"));
+      DBGLN(command);
 
       // Starts after <command>/?
       readValue = readValue.substring(commandDelimiter + 2);
 
       // Parse commands
       if (command.equals("join")) {
-        Serial.println(F("Got join command"));
+        DBGLN(F("Got join command"));
         String ssid = Utility::findValue(readValue, "ssid");
-        String pass = Utility::findValue(readValue, "pass");
-        Serial.print("SSID: ");
-        Serial.println(ssid);
-        Serial.print("Password: ");
-        Serial.println(pass);
+        String password = Utility::findValue(readValue, "pass");
+        DBG("SSID: ");
+        DBGLN(ssid);
+        DBG("Password: ");
+        DBGLN(password);
 
-        //TODO Save SSID and pass ?
+        //TODO: Save SSID and pass ?
 
-        //sendCommand("AT+CIPSERVER=0,80");
+        //TODO: Send ack
 
-        //        if (sendCmd("AT+CIPSERVER=0,80", "OK")) {
-        //          Serial.println(F("ESP8266 Server is stopped"));
-        //        } else {
-        //          Serial.println(F("ESP8266 Server failed to stop"));
-        //        }
+        //TODO: Close connection
 
-        if (sendCmd("AT+CWMODE=3", "OK")) {
-          Serial.println(F("ESP8266 Changed to STA mode"));
-        } else {
-          Serial.println(F("ESP8266 Change to STA mode failed"));
+        println(F("AT+CIPSERVER=0,80"));
+        data = "";
+        if (!readCmdResult(data)) {
+          DBGLN(F("ESP (easyConfig) Could not close server."));
+          return false;
         }
 
-        String joinCmd = "AT+CWJAP=\"";
-        joinCmd += ssid;
-        joinCmd += "\",\"";
-        joinCmd += pass;
-        joinCmd += "\"";
-        joinCmd.toCharArray(_cmdBuf, CMD_BUF_SIZE);
-        Serial.print(F("ESP8266 Joining SSID "));
-        Serial.println(ssid);
-        sendCommand(_cmdBuf);
+        if (!initialize(STA, ssid, password)) {
+          DBGLN(F("ESP (easyConfig) Could not join AP."));
+          //TODO Tell 'interface' that requested this, that it failed.
+          return false;
+        }
+
         break;
-        //        if (sendCmd(_cmdBuf, "OK")) {
-        //          Serial.println(F("ESP8266 Joined"));
-        //          break;
-        //        } else {
-        //          Serial.println(F("ESP8266 Join failed"));
-        //        }
-
       }
-
-
     }
-
   }
 
-  delay(2000);
+  _easyConfigServer = false;
 
   burnBuffer();
-  //  if (sendCmd("AT+CIPSERVER=1,80", "OK")) {
-  //    Serial.println(F("ESP8266 Server is running"));
-  //  } else {
-  //    Serial.println(F("ESP8266 Server initialization failed"));
-  //  }
-  burnBuffer();
 
-
-  // Get IP
-  sendCommand("AT+CIFSR");
-  if (sendCmd("AT+CIFSR", "OK", true)) {
-    Serial.print(F("ESP8266 Got IP: "));
-    Serial.println(_readBuf);
+  println(F("AT+CIFSR"));
+  data = "";
+  if (!readCmdResult(data)) {
+    DBGLN(F("ESP (easyConfig) Failed to read IP."));
   } else {
-    Serial.println(F("ESP8266 Failed to get IP"));
+    DBGLN(F("Got IP data:"));
+    DBGLN(data);
   }
 
-  Serial.println(F("ESP8266 EasyConfig done!"));
+
+  DBGLN(F("ESP8266 EasyConfig done!"));
 }
 
 void ESP8266EasyConfig::end(void) {
-  sendCommand("AT+CWQAP");
-}
-
-bool ESP8266EasyConfig::setupAP() {
-  if (sendCmd("AT+CIPMUX=1", "OK")) {
-    Serial.println(F("ESP8266 Multiconnection mode enabled"));
-  } else {
-    Serial.println(F("ESP8266 Multiconnection mode failed"));
-  }
-
-  sendCommand("AT+CWMODE=3");
-
-
-  //  _serial.println("AT+CWMODE=2");
-  //  delay(1000);
-  //  if (_serial.find("OK"))
-  //  {
-  //    Serial.println(F("Acce_serial Point mode enabled"));
-  //  }
-  //  else
-  //  {
-  //    Serial.println(F("Acce_serial Point mode failed to initiate"));
-  //
-  //  }
-
-  if (sendCmd("AT+CIPSERVER=1,80", "OK")) {
-    Serial.println(F("ESP8266 Server is running"));
-  } else {
-    Serial.println(F("ESP8266 Server initialization failed"));
-  }
-
-  //Setup the AP with _serialID MORAS, on channel 11, with no pa_serialword
-
-  String apCommand = "AT+CWSAP=\"";
-  apCommand += _ssid;
-  apCommand += "\",\"";
-  apCommand += _password;
-  apCommand += "\"";
-  apCommand += _channel;
-  apCommand += ",";
-  apCommand += _encryption;
-  apCommand.toCharArray(_cmdBuf, CMD_BUF_SIZE);
-  if (sendCmd(_cmdBuf, "OK")) {
-    Serial.println(F("ESP8266 Access point operational!"));
-  } else {
-    Serial.println(F("ESP8266 Access point initialization failed"));
-  }
-
-  return true;
-}
-
-bool ESP8266EasyConfig::sendCmd(char* command, char* successCriteria, bool expectData) {
-  _serial.println(command);
-  _serial.find(command);
-
-  if (expectData) {
-    chewCRLF();
-    int readBytes = _serial.readBytesUntil('\r', _readBuf, READ_BUF_SIZE);
-    _readBuf[readBytes] = '\0';
-    if (readBytes > 0) {
-      Serial.print("Read data: ");
-      Serial.println(_readBuf);
-    }
-  }
-
-  chewCRLF();
-  _ackBuf[0] = _serial.read();
-  _ackBuf[1] = _serial.read();
-
-  //Serial.println("ACK:");
-  //Serial.println(_ackBuf);
-
-  if (strcmp(_ackBuf, successCriteria) == 0) {
-    return true;
-  }
-
-  return false;
+  //TODO: What shoul be closed ?
 }
 
 String ESP8266EasyConfig::receiveData(void) {
@@ -574,15 +475,12 @@ String ESP8266EasyConfig::receiveData(int8_t &id) {
 
   if (dataOk) {
     String idString = readData.substring(0, connectionIdDelimiter);
-    Serial.println(idString);
     int idInt = idString.toInt();
-    Serial.println(idInt);
     id = (int8_t) idInt;
-    Serial.println(id);
     readData = readData.substring(startDelimiter + 1);
   } else {
-    Serial.println(F("Data malformed?"));
-    Serial.println(readData);
+    DBGLN(F("Data malformed?"));
+    DBGLN(readData);
     readData = "";
   }
 
@@ -591,45 +489,9 @@ String ESP8266EasyConfig::receiveData(int8_t &id) {
   return readData;
 }
 
-String ESP8266EasyConfig::sendData(int8_t id, String data) {
-  String sendCmd = "AT+CIPSEND=";
-  sendCmd += id;
-  sendCmd += ",";
-  sendCmd += data.length();
-  _serial.println(sendCmd);
-  if (_serial.find(">")) {
-    _serial.print(data);
-  } else {
-    _serial.print("AT+CIPCLOSE=");
-    _serial.println(id);
-  }
-  sendCmd.toCharArray(_cmdBuf, CMD_BUF_SIZE);
-  sendCommand(sendCmd, true);
-  //  if (sendCmd(_cmdBuf, "OK")) {
-  //    Serial.println(F("ESP8266 Send starting"));
-  //  } else {
-  //    Serial.println(F("ESP8266 Failed to start sending"));
-  //  }
-}
-
 void ESP8266EasyConfig::burnBuffer(void) {
   while (_serial.available() > 0) {
     _serial.read();
-  }
-}
-
-void ESP8266EasyConfig::chewCRLF(void) {
-  while (true) {
-    char c = _serial.peek();
-    if (c == -1) {
-      delay(10);
-      continue;
-    }
-    if (c == '\r' || c == '\n') {
-      _serial.read();
-    } else {
-      break;
-    }
   }
 }
 
@@ -651,37 +513,4 @@ void ESP8266EasyConfig::println(const __FlashStringHelper *fsh) {
 void ESP8266EasyConfig::println(const String &s) {
   Serial.println(s);
   _serial.println(s);
-}
-
-String ESP8266EasyConfig::sendCommand(String command, bool transaction) {
-  _serial.println(command);
-  delay(1000);
-  String ret = readCom();
-  if (transaction) {
-    Serial.println(F("Transaction:"));
-    Serial.println(ret);
-  }
-  return ret;
-}
-
-String ESP8266EasyConfig::readCom(void) {
-  String ret = "";
-  byte _rbIndex = 0;
-
-  while (_serial.available() > 0) {
-    if (_rbIndex > (BUFFER_SIZE - 2)) {
-      Serial.println(F("Read buffer full :<"));
-      //return false;
-    }
-    char c = _serial.read();
-    _readBuf[_rbIndex++] = c;
-    _readBuf[_rbIndex] = '\0';
-  }
-
-  if (_rbIndex > 0) {
-    ret = _readBuf;
-    _readBuf[0] = '\0';
-  }
-
-  return ret;
 }

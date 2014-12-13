@@ -34,13 +34,13 @@ int8_t Utility::findNoOccurrences(const String input, const String searchingFor)
   if (last == -1) {
     return 0;
   }
-  
+
   int8_t occurrences = 1;
   int first = input.indexOf(searchingFor);
   while (first < last) {
     occurrences++;
     first = input.indexOf(searchingFor, first + 1);
   }
-  
+
   return occurrences;
 }
