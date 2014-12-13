@@ -3,16 +3,7 @@
 #include "ESP8266EasyConfig.h"
 
 #include "Utility.h"
-
-#define DEBUG
-
-#ifdef DEBUG
-#define DBG(message) Serial.print(message)
-#define DBGLN(message) Serial.println(message)
-#else
-#define DBG(message)
-#define DBGLN(message)
-#endif
+#include "common.h"
 
 ESP8266EasyConfig::ESP8266EasyConfig(Stream &serial) : _serial(serial) {
 }

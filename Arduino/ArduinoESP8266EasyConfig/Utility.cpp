@@ -1,13 +1,14 @@
 #include "Utility.h"
+#include "common.h"
 
 String Utility::findValue(String input, const String key) {
-  Serial.println("Got: " + input);
+  DBGLN("Got: " + input);
 
   String ret = "Key not found: " + key;
   int eqIndex = input.indexOf('=');
   while (eqIndex > -1) {
     String k = input.substring(0, eqIndex);
-    Serial.println("Found key: " + k);
+    DBGLN("Found key: " + k);
     String v;
     int ampIndex = input.indexOf('&');
     if (ampIndex > -1) {
@@ -17,7 +18,7 @@ String Utility::findValue(String input, const String key) {
       v = input.substring(eqIndex + 1);
       input = v;
     }
-    Serial.println("Found value: " + v);
+    DBGLN("Found value: " + v);
     if (k.equals(key)) {
       ret = v;
       break;
