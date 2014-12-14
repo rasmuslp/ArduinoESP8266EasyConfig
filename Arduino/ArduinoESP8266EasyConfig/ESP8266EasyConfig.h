@@ -48,9 +48,9 @@ class ESP8266EasyConfig {
     bool connectToAP(const String ssid, const String password);
     bool getConnectedAPInfo(String &ssid);
     bool setSTAMac(const String mac);
-    bool getSTAMac(String &data);
+    bool getSTAMac(String &mac);
     bool setSTAIP(const String ip);
-    bool getSTAIP(String &data);
+    bool getSTAIP(String &ip);
 
     // NB: Only works if in STA or AP_STA mode, will throw error otherwise
     bool listWifis(String &data);
@@ -63,9 +63,9 @@ class ESP8266EasyConfig {
     bool getSoftAPInfo(String &data);
     bool getSoftAPClientIPs(String &data);
     bool setSoftAPMac(const String mac);
-    bool getSoftAPMac(String &data);
+    bool getSoftAPMac(String &mac);
     bool setSoftAPIP(const String ip);
-    bool getSoftAPIP(String &data);
+    bool getSoftAPIP(String &ip);
 
     // TCP/IP commands
     String receiveData(void);

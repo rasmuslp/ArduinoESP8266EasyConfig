@@ -183,6 +183,60 @@ bool ESP8266EasyConfig::getConnectedAPInfo(String &ssid) {
   return true;
 }
 
+bool ESP8266EasyConfig::setSTAMac(const String mac) {
+  if (!_modulePresent) {
+    return false;
+  }
+  
+  com(F("AT+CIPSTAMAC="));
+  comln(mac);
+  return readCmdResult();
+}
+
+bool ESP8266EasyConfig::getSTAMac(String &mac) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  comln(F("AT+CIPSTAMAC?"));
+  if (!readCmdResult(mac)) {
+    return false;
+  }
+  mac.replace(F("AT+CIPSTAMAC?"), "");
+  mac.replace(F("+CIPSTAMAC?:"), "");
+  mac.replace(F("OK"), "");
+  mac.trim();
+
+  return true;
+}
+
+bool ESP8266EasyConfig::setSTAIP(const String ip) {
+  if (!_modulePresent) {
+    return false;
+  }
+  
+  com(F("AT+CIPSTA="));
+  comln(ip);
+  return readCmdResult();
+}
+
+bool ESP8266EasyConfig::getSTAIP(String &ip) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  comln(F("AT+CIPSTA?"));
+  if (!readCmdResult(ip)) {
+    return false;
+  }
+  ip.replace(F("AT+CIPSTA?"), "");
+  ip.replace(F("+CIPSTA?:"), "");
+  ip.replace(F("OK"), "");
+  ip.trim();
+
+  return true;
+}
+
 bool ESP8266EasyConfig::listWifis(String &data) {
   if (!_modulePresent) {
     return false;
@@ -309,6 +363,60 @@ bool ESP8266EasyConfig::getSoftAPClientIPs(String &data) {
   data.replace(F("AT+CWLIF"), "");
   data.replace(F("OK"), "");
   data.trim();
+
+  return true;
+}
+
+bool ESP8266EasyConfig::setSoftAPMac(const String mac) {
+  if (!_modulePresent) {
+    return false;
+  }
+  
+  com(F("AT+CIPAPMAC="));
+  comln(mac);
+  return readCmdResult();
+}
+
+bool ESP8266EasyConfig::getSoftAPMac(String &mac) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  comln(F("AT+CIPAPMAC?"));
+  if (!readCmdResult(mac)) {
+    return false;
+  }
+  mac.replace(F("AT+CIPAPMAC?"), "");
+  mac.replace(F("+CIPAPMAC?:"), "");
+  mac.replace(F("OK"), "");
+  mac.trim();
+
+  return true;
+}
+
+bool ESP8266EasyConfig::setSoftAPIP(const String ip) {
+  if (!_modulePresent) {
+    return false;
+  }
+  
+  com(F("AT+CIPAP="));
+  comln(ip);
+  return readCmdResult();
+}
+
+bool ESP8266EasyConfig::getSoftAPIP(String &ip) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  comln(F("AT+CIPAP?"));
+  if (!readCmdResult(ip)) {
+    return false;
+  }
+  ip.replace(F("AT+CIPAP?"), "");
+  ip.replace(F("+CIPAP?:"), "");
+  ip.replace(F("OK"), "");
+  ip.trim();
 
   return true;
 }
