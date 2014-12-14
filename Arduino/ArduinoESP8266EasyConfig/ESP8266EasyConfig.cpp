@@ -14,7 +14,7 @@ ESP8266EasyConfig::~ESP8266EasyConfig() {
 
 bool ESP8266EasyConfig::begin(void) {
   _serial.flush();
-  
+
   comln(F("AT"));
   _modulePresent = readCmdResult();
 
@@ -52,7 +52,7 @@ bool ESP8266EasyConfig::getVersionInfo(String &data) {
   if (!readCmdResult(data)) {
     return false;
   }
-  
+
   data.replace(F("AT+GMR"), "");
   data.replace(F("OK"), "");
   data.trim();
@@ -64,7 +64,7 @@ bool ESP8266EasyConfig::enterDeepSleep(unsigned int timeInMs) {
   if (!_modulePresent) {
     return false;
   }
-  
+
   String cmd = F("AT+GSLP=");
   cmd += timeInMs;
 
@@ -73,11 +73,11 @@ bool ESP8266EasyConfig::enterDeepSleep(unsigned int timeInMs) {
   if (!readCmdResult(data)) {
     return false;
   }
-  
+
   data.replace(cmd, "");
   data.replace(F("OK"), "");
   data.trim();
-  
+
   //TODO: Compare returned time with requested time ?
 
   return true;
@@ -87,7 +87,7 @@ bool ESP8266EasyConfig::enableEcho(bool echo) {
   if (!_modulePresent) {
     return false;
   }
-  
+
   com(F("ATE"));
   comln(echo ? "1" : "0");
   if (!readCmdResult()) {
@@ -95,6 +95,261 @@ bool ESP8266EasyConfig::enableEcho(bool echo) {
   }
 
   return true;
+}
+
+bool ESP8266EasyConfig::setMode(const uint8_t mode) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  com(F("AT+CWMODE="));
+  comln(String(mode));
+
+  return readCmdResult();
+}
+
+int8_t ESP8266EasyConfig::getMode() {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  comln(F("AT+CWMODE?"));
+  String data = "";
+  if (!readCmdResult(data)) {
+    return -1;
+  }
+
+  //TODO: Alternatively, parse data
+  int8_t mode = -1;
+  if (data.indexOf(String(STA)) != -1) {
+    mode = STA;
+  } else if (data.indexOf(String(AP)) != -1) {
+    mode = AP;
+  } else if (data.indexOf(String(AP_STA)) != -1) {
+    mode = AP_STA;
+  }
+
+  return mode;
+}
+
+bool ESP8266EasyConfig::enableDHCPFor(const uint8_t mode, const bool dhcp) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  com(F("AT+CWDHCP="));
+  com(String(mode));
+  com(F(","));
+  comln(dhcp ? "0" : "1");
+
+  return readCmdResult();
+}
+
+bool ESP8266EasyConfig::connectToAP(const String ssid, const String password) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  com(F("AT+CWJAP="));
+  com(F("\""));
+  com(ssid);
+  com(F("\""));
+  com(F(","));
+  com(F("\""));
+  com(password);
+  comln("\"");
+
+  return readCmdResult(25000);
+}
+
+bool ESP8266EasyConfig::getConnectedAPInfo(String &ssid) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  comln(F("AT+CWJAP?"));
+
+  String data = "";
+  if (!readCmdResult(data)) {
+    return false;
+  }
+  data.replace(F("AT+CWJAP?"), "");
+  data.replace(F("+CWJAP?:\""), "");
+  data.replace(F("\""), "");
+  data.replace(F("OK"), "");
+  data.trim();
+  ssid = data;
+
+  return true;
+}
+
+bool ESP8266EasyConfig::listWifis(String &data) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  comln(F("AT+CWLAP"));
+
+  bool success = readCmdResult(data, 10000);
+  if (!success) {
+    DBG(F("ESP (listWifis) Error: "));
+    DBGLN(data);
+    return false;
+  }
+
+  int8_t occurrences = Utility::findNoOccurrences(data, "+CWLAP:");
+  DBG(F("Number of Wifis: "));
+  DBGLN(occurrences);
+
+  //TODO: Extract information about available APs
+  data.replace(F("AT+CWLAP"), "");
+  data.replace(F("+CWLAP:"), "WiFi ");
+  data.replace(F("OK"), "");
+  data.trim();
+
+  return true;
+}
+
+bool ESP8266EasyConfig::searchForWifi(const String ssid, const String macAddress, const uint8_t channel, String &data) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  com(F("AT+CWLAP="));
+  com(F("\""));
+  com(ssid);
+  com(F("\""));
+  com(F(","));
+  com(F("\""));
+  com(macAddress);
+  com(F("\""));
+  com(F(","));
+  comln(String(channel));
+
+  bool success = readCmdResult(data, 15000);
+  if (!success) {
+    DBG(F("ESP (searchForWifi) Error: "));
+    DBGLN(data);
+    return false;
+  }
+
+  int8_t occurrences = Utility::findNoOccurrences(data, "+CWLAP:");
+  if (occurrences == 1) {
+    //TODO: Extract information about available APs
+    data.replace(F("AT+CWLAP"), "");
+    data.replace(F("+CWLAP:"), "WiFi ");
+    data.replace(F("OK"), "");
+    data.trim();
+
+    return true;
+  }
+
+  return false;
+}
+
+bool ESP8266EasyConfig::disconnectFromAP(void) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  comln(F("AT+CWQAP"));
+
+  return readCmdResult();
+}
+
+bool ESP8266EasyConfig::startSoftAP(const String ssid, const String password, const uint8_t channel, const uint8_t encryption) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  com(F("AT+CWSAP="));
+  com(F("\""));
+  com(ssid);
+  com(F("\""));
+  com(F(","));
+  com(F("\""));
+  com(password);
+  com("\"");
+  com(F(","));
+  com(String(channel));
+  com(F(","));
+  comln(String(encryption));
+
+  return readCmdResult();
+}
+
+bool ESP8266EasyConfig::getSoftAPInfo(String &data) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  comln(F("AT+CWSAP?"));
+  if (!readCmdResult(data)) {
+    return false;
+  }
+
+  data.replace(F("AT+CWSAP?"), "");
+  data.replace(F("+CWSAP?:"), "");
+  data.replace(F("OK"), "");
+  data.trim();
+
+  return true;
+}
+
+bool ESP8266EasyConfig::getSoftAPClientIPs(String &data) {
+  if (!_modulePresent) {
+    return false;
+  }
+
+  comln(F("AT+CWLIF"));
+
+  if (!readCmdResult(data)) {
+    return false;
+  }
+  data.replace(F("AT+CWLIF"), "");
+  data.replace(F("OK"), "");
+  data.trim();
+
+  return true;
+}
+
+String ESP8266EasyConfig::receiveData(void) {
+  int8_t id;
+  return receiveData(id);
+}
+
+String ESP8266EasyConfig::receiveData(int8_t &id) {
+  if (!_serial.find("+IPD,")) {
+    return "";
+  }
+
+  String readData = _serial.readStringUntil('\r');
+  bool dataOk = true;
+
+  int connectionIdDelimiter = readData.indexOf(',');
+  if (connectionIdDelimiter == -1) {
+    dataOk = false;
+  }
+
+  int startDelimiter = readData.indexOf(':');
+  if (startDelimiter == -1) {
+    dataOk = false;
+  }
+
+  if (dataOk) {
+    String idString = readData.substring(0, connectionIdDelimiter);
+    int idInt = idString.toInt();
+    id = (int8_t) idInt;
+    readData = readData.substring(startDelimiter + 1);
+  } else {
+    DBGLN(F("Data malformed?"));
+    DBGLN(readData);
+    readData = "";
+  }
+
+  burnBuffer();
+
+  return readData;
 }
 
 bool ESP8266EasyConfig::initialize(const uint8_t mode, const String ssid, const String password, const uint8_t channel, const uint8_t encryption) {
@@ -129,7 +384,7 @@ bool ESP8266EasyConfig::initialize(const uint8_t mode, const String ssid, const 
 
   // Join AP
   if (mode == STA || mode == AP_STA) {
-    success = joinAP(ssid, password);
+    success = connectToAP(ssid, password);
     if (!success) {
       return false;
     }
@@ -137,217 +392,13 @@ bool ESP8266EasyConfig::initialize(const uint8_t mode, const String ssid, const 
 
   // Host AP
   if (mode == AP || mode == AP_STA) {
-    success = hostSoftAP(ssid, password, channel, encryption);
+    success = startSoftAP(ssid, password, channel, encryption);
     if (!success) {
       return false;
     }
   }
 
   return success;
-}
-
-int8_t ESP8266EasyConfig::getMode() {
-  if (!_modulePresent) {
-    return false;
-  }
-
-  comln(F("AT+CWMODE?"));
-
-  String data = "";
-  if (!readCmdResult(data)) {
-    return -1;
-  }
-
-  int8_t mode = -1;
-  if (data.indexOf(String(STA)) != -1) {
-    mode = STA;
-  } else if (data.indexOf(String(AP)) != -1) {
-    mode = AP;
-  } else if (data.indexOf(String(AP_STA)) != -1) {
-    mode = AP_STA;
-  }
-
-  return mode;
-}
-
-bool ESP8266EasyConfig::setMode(const uint8_t mode) {
-  if (!_modulePresent) {
-    return false;
-  }
-
-  com(F("AT+CWMODE="));
-  comln(String(mode));
-
-  return readCmdResult();
-}
-
-bool ESP8266EasyConfig::listWifis(String &data) {
-  if (!_modulePresent) {
-    return false;
-  }
-
-  comln(F("AT+CWLAP"));
-
-  bool success = readCmdResult(data, 10000);
-  if (!success) {
-    DBG(F("ESP (listAP) Error: "));
-    DBGLN(data);
-    return false;
-  }
-
-  int8_t occurrences = Utility::findNoOccurrences(data, "+CWLAP:");
-  DBG(F("Number of APs: "));
-  DBGLN(occurrences);
-
-  //TODO: Extract information about available APs
-  data.replace(F("AT+CWLAP"), "");
-  data.replace(F("+CWLAP:"), "WiFi ");
-  data.replace(F("OK"), "");
-  data.trim();
-
-  return true;
-}
-
-bool ESP8266EasyConfig::joinAP(const String ssid, const String password) {
-  if (!_modulePresent) {
-    return false;
-  }
-
-  com(F("AT+CWJAP="));
-  com(F("\""));
-  com(ssid);
-  com(F("\""));
-  com(F(","));
-  com(F("\""));
-  com(password);
-  comln("\"");
-
-  return readCmdResult(25000);
-}
-
-bool ESP8266EasyConfig::getAPInfo(String &ssid) {
-  if (!_modulePresent) {
-    return false;
-  }
-
-  comln(F("AT+CWJAP?"));
-
-  String data = "";
-  if (!readCmdResult(data)) {
-    return false;
-  }
-  data.replace(F("AT+CWJAP?"), "");
-  data.replace(F("+CWJAP?:\""), "");
-  data.replace(F("\""), "");
-  data.replace(F("OK"), "");
-  data.trim();
-  ssid = data;
-
-  return true;
-}
-
-bool ESP8266EasyConfig::leaveAP(void) {
-  if (!_modulePresent) {
-    return false;
-  }
-
-  comln(F("AT+CWQAP"));
-
-  return readCmdResult();
-}
-
-bool ESP8266EasyConfig::hostSoftAP(const String ssid, const String password, const uint8_t channel, const uint8_t encryption) {
-  if (!_modulePresent) {
-    return false;
-  }
-
-  com(F("AT+CWSAP="));
-  com(F("\""));
-  com(ssid);
-  com(F("\""));
-  com(F(","));
-  com(F("\""));
-  com(password);
-  com("\"");
-  com(F(","));
-  com(String(channel));
-  com(F(","));
-  comln(String(encryption));
-
-  return readCmdResult();
-}
-
-bool ESP8266EasyConfig::getSoftAPInfo(String &data) {
-  if (!_modulePresent) {
-    return false;
-  }
-
-  comln(F("AT+CWSAP?"));
-
-  if (!readCmdResult(data)) {
-    return false;
-  }
-  data.replace(F("AT+CWSAP?"), "");
-  data.replace(F("+CWSAP?:"), "");
-  data.replace(F("OK"), "");
-  data.trim();
-
-  return true;
-}
-
-bool ESP8266EasyConfig::getSoftAPConnectionIPs(String &data) {
-  if (!_modulePresent) {
-    return false;
-  }
-
-  comln(F("AT+CWLIF"));
-
-  if (!readCmdResult(data)) {
-    return false;
-  }
-  data.replace(F("AT+CWLIF"), "");
-  data.replace(F("+CWSAP?:"), "");
-  data.replace(F("OK"), "");
-  data.trim();
-
-  return true;
-}
-
-bool ESP8266EasyConfig::readCmdResult(const uint16_t timeoutInMs) {
-  String data = "";
-  return readCmdResult(data, timeoutInMs);
-}
-
-bool ESP8266EasyConfig::readCmdResult(String &data, const uint16_t timeoutInMs) {
-  unsigned long start = millis();
-  while (millis() - start < timeoutInMs) {
-    if (_serial.available() > 0) {
-      char c = _serial.read();
-      data += c;
-    }
-
-    if (data.indexOf("OK") != -1 || data.indexOf("no change") != -1) {
-      return true;
-    }
-
-    if (data.indexOf("ERROR") != -1 || data.indexOf("FAIL") != -1) {
-      //TODO: Capture busy ?
-      // FAIL will follow a 'busy'
-      while (_serial.available() > 0) {
-        char c = _serial.read();
-        data += c;
-      }
-
-      DBGLN(F("ESP (readCmdResult) Error: "));
-      DBGLN(data);
-      return false;
-    }
-  }
-
-  DBGLN(F("ESP (readCmdResult) Timed out. Data: "));
-  DBGLN(data);
-
-  return false;
 }
 
 bool ESP8266EasyConfig::easyConfig(const String ssid, const String password, const uint8_t channel, const uint8_t encryption) {
@@ -472,43 +523,41 @@ void ESP8266EasyConfig::end(void) {
   //TODO: What shoul be closed ?
 }
 
-String ESP8266EasyConfig::receiveData(void) {
-  int8_t id;
-  return receiveData(id);
+bool ESP8266EasyConfig::readCmdResult(const uint16_t timeoutInMs) {
+  String data = "";
+  return readCmdResult(data, timeoutInMs);
 }
 
-String ESP8266EasyConfig::receiveData(int8_t &id) {
-  if (!_serial.find("+IPD,")) {
-    return "";
+bool ESP8266EasyConfig::readCmdResult(String &data, const uint16_t timeoutInMs) {
+  unsigned long start = millis();
+  while (millis() - start < timeoutInMs) {
+    if (_serial.available() > 0) {
+      char c = _serial.read();
+      data += c;
+    }
+
+    if (data.indexOf("OK") != -1 || data.indexOf("no change") != -1) {
+      return true;
+    }
+
+    if (data.indexOf("ERROR") != -1 || data.indexOf("FAIL") != -1) {
+      //TODO: Capture busy ?
+      // FAIL will follow a 'busy'
+      while (_serial.available() > 0) {
+        char c = _serial.read();
+        data += c;
+      }
+
+      DBGLN(F("ESP (readCmdResult) Error: "));
+      DBGLN(data);
+      return false;
+    }
   }
 
-  String readData = _serial.readStringUntil('\r');
-  bool dataOk = true;
+  DBGLN(F("ESP (readCmdResult) Timed out. Data: "));
+  DBGLN(data);
 
-  int connectionIdDelimiter = readData.indexOf(',');
-  if (connectionIdDelimiter == -1) {
-    dataOk = false;
-  }
-
-  int startDelimiter = readData.indexOf(':');
-  if (startDelimiter == -1) {
-    dataOk = false;
-  }
-
-  if (dataOk) {
-    String idString = readData.substring(0, connectionIdDelimiter);
-    int idInt = idString.toInt();
-    id = (int8_t) idInt;
-    readData = readData.substring(startDelimiter + 1);
-  } else {
-    DBGLN(F("Data malformed?"));
-    DBGLN(readData);
-    readData = "";
-  }
-
-  burnBuffer();
-
-  return readData;
+  return false;
 }
 
 void ESP8266EasyConfig::burnBuffer(void) {

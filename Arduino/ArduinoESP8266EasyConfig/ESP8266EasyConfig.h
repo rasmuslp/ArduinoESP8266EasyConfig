@@ -32,38 +32,51 @@ class ESP8266EasyConfig {
     ESP8266EasyConfig(Stream &serial);
     ~ESP8266EasyConfig();
 
-    // Module commands
+    /// Module commands
     bool begin(void);
     bool restart(void);
     bool getVersionInfo(String &data);
     bool enterDeepSleep(unsigned int timeInMs);
-    bool enableEcho(bool echo);
+    bool enableEcho(const bool echo);
 
-    // Wi-Fi commands
-    bool initialize(const uint8_t mode = AP, const String ssid = "EasyConfig", const String password = "", const uint8_t channel = 11, const uint8_t encryption = NONE);
-
-    int8_t getMode();
+    /// Wi-Fi commands
     bool setMode(const uint8_t mode);
+    int8_t getMode();
+    bool enableDHCPFor(const uint8_t mode, const bool dhcp);
+
+    // STA-mode
+    bool connectToAP(const String ssid, const String password);
+    bool getConnectedAPInfo(String &ssid);
+    bool setSTAMac(const String mac);
+    bool getSTAMac(String &data);
+    bool setSTAIP(const String ip);
+    bool getSTAIP(String &data);
 
     // NB: Only works if in STA or AP_STA mode, will throw error otherwise
     bool listWifis(String &data);
+    bool searchForWifi(const String ssid, const String mac, const uint8_t channel, String &data);
 
-    bool joinAP(const String ssid, const String password);
-    bool getAPInfo(String &ssid);
-    bool leaveAP(void);
+    bool disconnectFromAP(void);
 
-    bool hostSoftAP(const String ssid, const String password, const uint8_t channel, const uint8_t encryption);
+    // AP-mode
+    bool startSoftAP(const String ssid, const String password, const uint8_t channel, const uint8_t encryption);
     bool getSoftAPInfo(String &data);
-    bool getSoftAPConnectionIPs(String &data);
+    bool getSoftAPClientIPs(String &data);
+    bool setSoftAPMac(const String mac);
+    bool getSoftAPMac(String &data);
+    bool setSoftAPIP(const String ip);
+    bool getSoftAPIP(String &data);
 
-    
-
-    bool easyConfig(const String ssid = "EasyConfig", const String password = "", const uint8_t channel = 11, const uint8_t encryption = NONE);
-    
-     // Old commands
-    void end(void);
+    // TCP/IP commands
     String receiveData(void);
     String receiveData(int8_t &id);
+
+    /// EasyConfig
+    bool initialize(const uint8_t mode = AP, const String ssid = "EasyConfig", const String password = "", const uint8_t channel = 11, const uint8_t encryption = NONE);
+    bool easyConfig(const String ssid = "EasyConfig", const String password = "", const uint8_t channel = 11, const uint8_t encryption = NONE);
+
+    // Old commands
+    void end(void);
 
   private:
     Stream &_serial;
