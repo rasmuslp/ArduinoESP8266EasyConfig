@@ -48,7 +48,7 @@ void loop() {
   if (digitalRead(RESET_BTN)) {
     // Reset
     Serial.println(F("Reset button was pressed"));
-    wifi.reset();
+    wifi.restart();
   }
 
   int8_t id = -1;

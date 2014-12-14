@@ -32,11 +32,12 @@ class ESP8266EasyConfig {
     ESP8266EasyConfig(Stream &serial);
     ~ESP8266EasyConfig();
 
-    // Start communication and test module
-    bool begin(void);
-
     // Module commands
-    bool getFirmwareInfo(String &data);
+    bool begin(void);
+    bool restart(void);
+    bool getVersionInfo(String &data);
+    bool enterDeepSleep(unsigned int timeInMs);
+    bool enableEcho(bool echo);
 
     // Wi-Fi commands
     bool initialize(const uint8_t mode = AP, const String ssid = "EasyConfig", const String password = "", const uint8_t channel = 11, const uint8_t encryption = NONE);
@@ -55,7 +56,7 @@ class ESP8266EasyConfig {
     bool getSoftAPInfo(String &data);
     bool getSoftAPConnectionIPs(String &data);
 
-    bool reset(void);
+    
 
     bool easyConfig(const String ssid = "EasyConfig", const String password = "", const uint8_t channel = 11, const uint8_t encryption = NONE);
     
@@ -75,6 +76,7 @@ class ESP8266EasyConfig {
 
     bool _easyConfigServer = false;
 
+    bool readCmdResult(const uint16_t timeoutInMs = 5000);
     bool readCmdResult(String &data, const uint16_t timeoutInMs = 5000);
 
     // Serial modification
